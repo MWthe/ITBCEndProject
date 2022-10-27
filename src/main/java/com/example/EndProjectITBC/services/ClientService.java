@@ -2,15 +2,16 @@ package com.example.EndProjectITBC.services;
 
 import com.example.EndProjectITBC.models.Client;
 import com.example.EndProjectITBC.models.Login;
-import com.example.EndProjectITBC.models.Role;
 import com.example.EndProjectITBC.repository.ClientRepository;
-import com.example.EndProjectITBC.repository.RoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,12 +20,12 @@ import java.util.regex.Pattern;
 public class ClientService {
 
     private final ClientRepository clientRepository;
-    private final RoleRepository roleRepository;
+
 
     @Autowired
-    public ClientService(ClientRepository clientRepository, RoleRepository roleRepository) {
+    public ClientService(ClientRepository clientRepository) {
         this.clientRepository = clientRepository;
-        this.roleRepository = roleRepository;
+
     }
 
     public boolean validEmail(String email) {
@@ -32,16 +33,6 @@ public class ClientService {
         Pattern emailPattern = Pattern.compile(emailRegex, Pattern.CASE_INSENSITIVE);
         Matcher matcher = emailPattern.matcher(email);
         return matcher.find();
-    }
-
-    public Role saveRole(Role role) {
-        return  roleRepository.save(role);
-    }
-
-    public void addRoleToClient(String username, String roleName) {
-        Optional<Client> client = clientRepository.findClientByUsername(username);
-        Role role = roleRepository.findByName(roleName);
-        client.get().getRoles().add(role);
     }
 
     //Come back to this (not working)
@@ -68,8 +59,8 @@ public class ClientService {
     public void registerClient(Client client) {
         Optional<Client> username = clientRepository.findClientByUsername(client.getUsername());
         Optional<Client> email = clientRepository.findClientByEmail(client.getEmail());
-                                                //(not working)
-        if (!validEmail(client.getEmail()) && !validPassword(client.getPassword())) {
+
+        if (!(validPassword(client.getPassword()) && validEmail(client.getEmail()))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
 
@@ -78,6 +69,25 @@ public class ClientService {
         } else if (email.isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
+        client.setClientType(2);
+        clientRepository.save(client);
+        throw new ResponseStatusException(HttpStatus.CREATED);
+    }
+
+    public void registerAdmin(Client client) {
+        Optional<Client> username = clientRepository.findClientByUsername(client.getUsername());
+        Optional<Client> email = clientRepository.findClientByEmail(client.getEmail());
+
+        if (!(validPassword(client.getPassword()) && validEmail(client.getEmail()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+
+        if (username.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        } else if (email.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+        client.setClientType(1);
         clientRepository.save(client);
         throw new ResponseStatusException(HttpStatus.CREATED);
     }
@@ -86,7 +96,19 @@ public class ClientService {
         return clientRepository.findAll();
     }
 
-    public void logInClient(Login login) {
+    public ResponseEntity<?> logInClient(Login login) {
+        Map<String, String> map = new HashMap<>();
+        if (clientRepository.findClientByUsername(login.getUsername()).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username or password is not valid!");
+        } else if (clientRepository.findClientByUsername(login.getUsername()).isEmpty()) {
 
+        }
+
+        if (clientRepository.findClientByPassword(login.getPassword()).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username or password is not valid!");
+        }
+
+        map.put("token", clientRepository.findClientByUsername(login.getUsername()).get().getId().toString());
+        return ResponseEntity.status(HttpStatus.OK).body(map);
     }
 }

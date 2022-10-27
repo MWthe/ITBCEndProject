@@ -2,15 +2,15 @@ package com.example.EndProjectITBC.controllers;
 
 import com.example.EndProjectITBC.models.Client;
 import com.example.EndProjectITBC.models.Login;
-import com.example.EndProjectITBC.models.Role;
 import com.example.EndProjectITBC.services.ClientService;
-import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping ("/api")
+@RequestMapping ("/api/clients")
 public class ClientController {
 
     private final ClientService clientService;
@@ -20,19 +20,24 @@ public class ClientController {
         this.clientService = clientService;
     }
 
-    @PostMapping(path = ("/clients/register"))
+    @PostMapping(path = ("/register"))
     public void registerClient(@RequestBody Client client) {
         clientService.registerClient(client);
     }
 
-    @PostMapping(path = ("/clients/login"))
-    public void logInClient(@RequestBody Login login) {
-        clientService.logInClient(login);
+    @PostMapping(path = ("/register/admin"))
+    public void registerAdmin(@RequestBody Client admin) {
+        clientService.registerAdmin(admin);
+    }
+
+    @PostMapping(path = ("/login"))
+    public ResponseEntity<?> logInClient(@RequestBody Login login) {
+        return clientService.logInClient(login);
     }
 
     @GetMapping
-    public void getAllClients() {
-        clientService.getClients();
+    public List<Client> getAllClients() {
+        return clientService.getClients();
     }
 
 }

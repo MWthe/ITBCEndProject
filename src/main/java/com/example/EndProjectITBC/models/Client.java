@@ -1,42 +1,38 @@
 package com.example.EndProjectITBC.models;
 
+import com.example.EndProjectITBC.enums.ClientType;
+
 import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
 @Table
 public class Client {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", nullable = false)
+    @Column(name = "clientid", nullable = false)
 
     private UUID id;
     private String username;
     private String password;
     private String email;
-
-    @ManyToMany(fetch = FetchType.EAGER)
-    private Collection<Role> roles = new ArrayList<>();
+    @Column (name = "client_type")
+    private Integer clientType;
 
     public Client() {
     }
 
-    public Client(String username, String password, String email, Collection<Role> roles) {
+    public Client(String username, String password, String email) {
         this.username = username;
         this.password = password;
         this.email = email;
-        this.roles = roles;
     }
 
-    public Client(UUID id, String username, String password, String email, Collection<Role> roles) {
+    public Client(UUID id, String username, String password, String email) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.email = email;
-        this.roles = roles;
     }
 
     public UUID getId() {
@@ -71,12 +67,12 @@ public class Client {
         this.email = email;
     }
 
-    public Collection<Role> getRoles() {
-        return roles;
+    public Integer getClientType() {
+        return clientType;
     }
 
-    public void setRoles(Collection<Role> roles) {
-        this.roles = roles;
+    public void setClientType(Integer clientType) {
+        this.clientType = clientType;
     }
 
     @Override
