@@ -12,6 +12,7 @@ public interface ClientRepository extends JpaRepository<Client, UUID> {
     @Query("SELECT c FROM Client c WHERE c.id = ?1")
     Optional<Client> getClientById(UUID id);
 
+    //same as above but its returning object instead of Optional
     @Query("SELECT c FROM Client c WHERE c.id = ?1")
     Client getClientByUUId(UUID id);
 

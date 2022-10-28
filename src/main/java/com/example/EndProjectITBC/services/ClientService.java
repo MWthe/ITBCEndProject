@@ -2,17 +2,18 @@ package com.example.EndProjectITBC.services;
 
 import com.example.EndProjectITBC.models.Client;
 import com.example.EndProjectITBC.models.Login;
+import com.example.EndProjectITBC.models.Token;
 import com.example.EndProjectITBC.repository.ClientRepository;
+import com.example.EndProjectITBC.repository.LogRepository;
+import com.example.EndProjectITBC.requests.UpdatePasswordRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,14 +21,15 @@ import java.util.regex.Pattern;
 public class ClientService {
 
     private final ClientRepository clientRepository;
-
+    private final LogRepository logRepository;
 
     @Autowired
-    public ClientService(ClientRepository clientRepository) {
+    public ClientService(ClientRepository clientRepository, LogRepository logRepository) {
         this.clientRepository = clientRepository;
-
+        this.logRepository = logRepository;
     }
 
+    //Checks if email entered is valid
     public boolean validEmail(String email) {
         String emailRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$";
         Pattern emailPattern = Pattern.compile(emailRegex, Pattern.CASE_INSENSITIVE);
@@ -35,7 +37,7 @@ public class ClientService {
         return matcher.find();
     }
 
-    //Come back to this (not working)
+    //Checks if password entered is valid
     public boolean validPassword(String password) {
         boolean capitalFlag = false;
         boolean lowerCaseFlag = false;
@@ -92,8 +94,20 @@ public class ClientService {
         throw new ResponseStatusException(HttpStatus.CREATED);
     }
 
-    public List<Client> getClients() {
-        return clientRepository.findAll();
+    public ResponseEntity<?> getClients(@RequestHeader Token token) {
+        if (clientRepository.getClientById(UUID.fromString(token.getToken())).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Incorrect token!");
+        }
+
+        if (clientRepository.getClientById(UUID.fromString(token.getToken())).get().getClientType() == 2) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Correct token, but not admin!");
+        }
+
+        if (clientRepository.getClientById(UUID.fromString(token.getToken())).get().getClientType() == 1) {
+            return ResponseEntity.status(HttpStatus.CREATED).body(clientRepository.findAll() + " " + logRepository.getLogCount(UUID.fromString(token.getToken())));
+        }
+
+        return ResponseEntity.status(HttpStatus.OK).body("Ok");
     }
 
     public ResponseEntity<?> logInClient(Login login) {
@@ -110,5 +124,21 @@ public class ClientService {
 
         map.put("token", clientRepository.findClientByUsername(login.getUsername()).get().getId().toString());
         return ResponseEntity.status(HttpStatus.OK).body(map);
+    }
+
+    public ResponseEntity<?> updateClientPassword(@RequestHeader Token token, UUID id, UpdatePasswordRequest password) {
+
+        if (clientRepository.getClientById(UUID.fromString(token.getToken())).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Incorrect token!");
+        }
+
+        if (clientRepository.getClientById(UUID.fromString(token.getToken())).get().getClientType() == 2) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Correct token, but not admin!");
+        }
+
+        Client client = clientRepository.findById(id).get();
+        client.setPassword(password.getPassword());
+
+        return ResponseEntity.status(HttpStatus.OK).body(clientRepository.save(client));
     }
 }
