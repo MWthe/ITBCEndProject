@@ -1,19 +1,17 @@
 package com.example.EndProjectITBC.services;
 
+import com.example.EndProjectITBC.enums.ClientType;
 import com.example.EndProjectITBC.models.Client;
 import com.example.EndProjectITBC.models.Login;
 import com.example.EndProjectITBC.models.Token;
 import com.example.EndProjectITBC.repository.ClientRepository;
 import com.example.EndProjectITBC.repository.LogRepository;
 import com.example.EndProjectITBC.requests.UpdatePasswordRequest;
+import com.example.EndProjectITBC.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,27 +21,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-public class ClientService implements UserDetailsService {
+public class ClientService {
 
     private final ClientRepository clientRepository;
     private final LogRepository logRepository;
+    private final JwtUtil jwtUtil;
 
     @Autowired
-    public ClientService(ClientRepository clientRepository, LogRepository logRepository) {
+    public ClientService(ClientRepository clientRepository, LogRepository logRepository, JwtUtil jwtUtil) {
         this.clientRepository = clientRepository;
         this.logRepository = logRepository;
+        this.jwtUtil = jwtUtil;
     }
 
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = clientRepository.findClientByUsername(username);
-        if (user == null) {
-            throw new UsernameNotFoundException("User not found in the database");
-        }
-        Collection <SimpleGrantedAuthority> authorities = new ArrayList<>();
-
-        return new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(), authorities);
-    }
     //Checks if email entered is valid
     public boolean validEmail(String email) {
         String emailRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$";
@@ -74,7 +64,7 @@ public class ClientService implements UserDetailsService {
     }
 
     public void registerClient(Client client) {
-        Optional<Client> username = clientRepository.findClientByUsernameJPA(client.getUsername());
+        Optional<Client> username = clientRepository.findClientByUsernameOpt(client.getUsername());
         Optional<Client> email = clientRepository.findClientByEmail(client.getEmail());
 
         if (!(validPassword(client.getPassword()) && validEmail(client.getEmail()))) {
@@ -92,7 +82,7 @@ public class ClientService implements UserDetailsService {
     }
 
     public void registerAdmin(Client client) {
-        Optional<Client> username = clientRepository.findClientByUsernameJPA(client.getUsername());
+        Optional<Client> username = clientRepository.findClientByUsernameOpt(client.getUsername());
         Optional<Client> email = clientRepository.findClientByEmail(client.getEmail());
 
         if (!(validPassword(client.getPassword()) && validEmail(client.getEmail()))) {
@@ -127,9 +117,9 @@ public class ClientService implements UserDetailsService {
 
     public ResponseEntity<?> logInClient(Login login) {
         Map<String, String> map = new HashMap<>();
-        if (clientRepository.findClientByUsernameJPA(login.getUsername()).isEmpty()) {
+        if (clientRepository.findClientByUsernameOpt(login.getUsername()).isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username or password is not valid!");
-        } else if (clientRepository.findClientByUsernameJPA(login.getUsername()).isEmpty()) {
+        } else if (clientRepository.findClientByUsernameOpt(login.getUsername()).isEmpty()) {
 
         }
 
@@ -137,8 +127,11 @@ public class ClientService implements UserDetailsService {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username or password is not valid!");
         }
 
-        map.put("token", clientRepository.findClientByUsernameJPA(login.getUsername()).get().getId().toString());
-        return ResponseEntity.status(HttpStatus.OK).body(map);
+        final UserDetails userDetails = clientRepository.findClientByUsername(login.getUsername());
+
+        final String jwt = jwtUtil.generateToken(userDetails);
+        map.put("token", clientRepository.findClientByUsernameOpt(login.getUsername()).get().getId().toString());
+        return ResponseEntity.status(HttpStatus.OK).body(jwt);
     }
 
     public ResponseEntity<?> updateClientPassword(@RequestHeader Token token, UUID id, UpdatePasswordRequest password) {
